@@ -1,12 +1,12 @@
 package service_test
 
 import (
-"bytes"
-"os"
-"path/filepath"
-"testing"
+	"bytes"
+	"os"
+	"path/filepath"
+	"testing"
 
-"github.com/tanuvnair/image-based-encryption/internal/service"
+	"github.com/tanuvnair/image-based-encryption/internal/service"
 )
 
 func writeFakeImage(t *testing.T, dir, name string) {
@@ -107,5 +107,32 @@ func TestEntropyService_RandomBytes_TwoCallsProbablyDiffer(t *testing.T) {
 	}
 	if bytes.Equal(b1, b2) {
 		t.Fatal("two RandomBytes calls produced identical output; expected different due to fresh CSPRNG per call")
+	}
+}
+
+func TestEntropyService_RandomBytes_ChiSquared(t *testing.T) {
+	dir := t.TempDir()
+	writeFakeImage(t, dir, "entropy01.png")
+	svc, _ := service.NewEntropyService(dir)
+
+	// Collect 100 KB of output
+	var freq [256]int
+	total := 100_000
+	buf, _ := svc.RandomBytes(total)
+	for _, b := range buf {
+		freq[b]++
+	}
+
+	// Chi-squared test: expected count per bucket
+	expected := float64(total) / 256.0
+	var chi2 float64
+	for _, count := range freq {
+		diff := float64(count) - expected
+		chi2 += (diff * diff) / expected
+	}
+
+	// For 255 degrees of freedom, chi2 > 310 is suspicious at p < 0.001
+	if chi2 > 310 {
+		t.Fatalf("chi-squared statistic %.2f suggests non-uniform output (threshold 310)", chi2)
 	}
 }
