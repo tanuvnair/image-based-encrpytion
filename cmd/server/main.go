@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/tanuvnair/image-based-encryption/internal/handlers"
+	"github.com/tanuvnair/image-based-encryption/internal/service"
 	"github.com/tanuvnair/image-based-encryption/internal/utils"
 )
 
@@ -19,12 +20,13 @@ func main() {
 		log.Fatalf("invalid image dir: %v", err)
 	}
 
-	// TODO: create ImageSource from imageDir
-	// TODO: create Mixer that combines ImageSource + crypto/rand
-	// TODO: create CSPRNG seeded by Mixer
+	svc, err := service.NewEntropyService(*imageDir)
+	if err != nil {
+		log.Fatalf("failed to create entropy service: %v", err)
+	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/random", handlers.HandleRandom)
+	mux.HandleFunc("/random", handlers.HandleRandom(svc))
 
 	addr := fmt.Sprintf(":%d", *port)
 	log.Printf("starting image based encryption server on %s (images: %s)", addr, *imageDir)
